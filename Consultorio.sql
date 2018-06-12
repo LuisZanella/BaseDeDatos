@@ -134,6 +134,7 @@ CREATE TABLE Persona(
 	NombreCompleto AS(Nombre + ' ' + ApellidoP+ ' ' + ApellidoM),
 	CONSTRAINT UC_Persona UNIQUE (NombreCompleto)
 )
+GO
 
 --CREACION DE LA TABLA MEDICO
 CREATE TABLE Medico(
@@ -147,6 +148,7 @@ CREATE TABLE Medico(
 	CONSTRAINT UC_Vocacion UNIQUE (Vocacion),
 	CONSTRAINT UC_Cedula UNIQUE (CedulaProfesional)
 )
+GO
 
 --CREACION DE LA TABLA PACIENTE
 CREATE TABLE Paciente(
@@ -211,8 +213,8 @@ CREATE TABLE RegistroProducto(
 --CREACION DE LA TABLA HistorialMedico por Paciente
 CREATE TABLE HistorialMedico(
 		CodigoHistorialMedico INT PRIMARY KEY IDENTITY,
-		CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente) ON DELETE CASCADE ON UPDATE CASCADE,
-		Edad VARCHAR (100) NOT NULL,
+		CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente),
+		Edad VARCHAR (100) NULL,
 		Estatura VARCHAR (6) NOT NULL,
 		Sexo VARCHAR (15) NOT NULL,
 		Ocupacion VARCHAR (60) NOT NULL,
@@ -454,3 +456,153 @@ INNER JOIN Persona P
 ON M.CodigoPersona = P.CodigoPersona
 WHERE Fecha = '2012-11-11'
 GROUP BY P.Nombre, P.ApellidoM,P.ApellidoP
+GO
+
+-----TRIGGERS TIPO 1
+CREATE TRIGGER tgr_TimeCita
+ON Cita
+AFTER UPDATE
+AS 
+	BEGIN
+		--SET NOCOUNT ON impide que se generen mensajes de texto
+		--con cada instrucción
+		SET NOCOUNT ON;
+		UPDATE Cita SET FechaFinal = GETDATE()
+		WHERE CodigoCita = (SELECT CodigoCita FROM inserted)
+	END
+GO
+
+CREATE TRIGGER tgr_EdadPaciente
+ON HistorialMedico
+AFTER INSERT
+AS 
+	BEGIN
+		--SET NOCOUNT ON impide que se generen mensajes de texto
+		--con cada instrucción
+		SET NOCOUNT ON;
+		DECLARE @today DATE = CAST(GETDATE() AS DATE)
+		DECLARE @idPaciente INT = (SELECT CodigoPaciente FROM inserted)
+		DECLARE @bDay DATE = (SELECT FechaNacimiento FROM Paciente WHERE CodigoPaciente = @idPaciente)
+		DECLARE @nyears INT = (Select datediff(Year, @bDay, @today) - case When datepart(dayofYear, @today) < datepart(dayofYear, @bDay) Then 1 Else 0)
+		UPDATE HistorialMedico SET Edad = @nyears
+		WHERE CodigoHistorialMedico = (SELECT CodigoHistorialMedico FROM inserted)
+		END
+GO
+
+
+-------PROCEDIMIENTOS ALMACENADOS INSERTS
+CREATE PROCEDURE sp_InsertMedico
+@Persona VARCHAR(20),
+@paterno VARCHAR(20),
+@materno VARCHAR(20),
+@vocacion VARCHAR(40),
+@consultorio INT,
+@cedula VARCHAR(30),
+@salubridad VARCHAR(30)
+AS
+	INSERT INTO Persona(Nombre, ApellidoP, ApellidoM)
+				 VALUES(@Persona, @paterno, @materno)
+	DECLARE @id INT = (SELECT MAX(CodigoPersona) FROM Persona)  
+	INSERT INTO Medico(CodigoPersona, Vocacion, Consultorio, CedulaProfesional, RegistroSalubridad)
+				VALUES(@id, @vocacion, @consultorio, @cedula, @salubridad)
+GO
+
+CREATE PROCEDURE sp_InsertPersona
+@Persona VARCHAR(20),
+@paterno VARCHAR(20),
+@materno VARCHAR(20),
+@sexo VARCHAR (15),
+@fechaNacimiento DATE
+AS
+	INSERT INTO Persona(Nombre, ApellidoP, ApellidoM)
+				 VALUES(@Persona, @paterno, @materno)
+	DECLARE @id INT = (SELECT MAX(CodigoPersona) FROM Persona) 
+	INSERT INTO Paciente(CodigoPersona, Sexo, FechaNacimiento)
+				  VALUES(@id, @sexo, @fechaNacimiento)
+GO
+
+CREATE TYPE ProductoType AS TABLE(
+	IdProducto INT,
+	Nombre VARCHAR (50) NOT NULL,
+	Cantidad VARCHAR(1000) NOT NULL,
+	Descripcion VARCHAR(1000) NOT NULL,
+	Categoria Varchar(100));
+GO
+
+CREATE PROCEDURE sp_InsertLabProducts
+@codLab VARCHAR(200),
+@nlab VARCHAR(200),
+@product ProductoType READONLY
+AS
+	INSERT INTO Laboratorio(CodigoLab, Nombre)
+					 VALUES(@codLab, @nlab)
+	DECLARE @IdLab INT
+	SET @IdLab=(SELECT MAX(CodigoLaboratorio) FROM Laboratorio)
+	INSERT INTO Producto(CodigoLaboratorio, CodigoProducto, Cantidad, Descripcion, Categoria)
+	SELECT @IdLab, * FROM @product
+GO
+
+-------PROCEDIMIENTOS ALMACENADOS CONSULTA
+CREATE PROCEDURE sp_PacientesAtendidosPorMedico
+@nombreMedico VARCHAR(20)
+AS
+	SELECT J.Nombre AS Paciente, HM.Edad AS EDAD, FechaInicio, FechaFinal, Hora
+	FROM Cita D INNER JOIN Medico F
+	ON D.CodigoMedico = F.CodigoMedico
+	INNER JOIN Paciente H
+	ON D.CodigoPaciente = H.CodigoPaciente
+	INNER JOIN Persona R
+	ON R.CodigoPersona = F.CodigoPersona 
+	INNER JOIN Persona J
+	ON J.CodigoPersona = H.CodigoPersona
+	INNER JOIN HistorialMedico HM
+	ON H.CodigoPaciente = HM.CodigoPaciente 
+	WHERE R.Nombre = @nombreMedico
+GO
+
+CREATE PROCEDURE sp_CitasFecha
+@fecha DATE
+AS
+	SELECT SUM (CodigoCita) AS 'Cantidad de citas'
+	FROM Cita
+	WHERE FechaInicio = @fecha
+GO
+
+
+-------PROCEDIMIENTOS ALMACENADOS CON TRY CATCH
+CREATE PROCEDURE sp_InsertMedicoProducto
+@idMedico INT,
+@idProducto INT,
+@fechaingreso DATE
+AS
+	BEGIN TRY
+	BEGIN TRANSACTION
+		INSERT INTO MedicoProducto(CodigoMedico, CodigoProducto, FechaIngreso)
+							VALUES(@idMedico, @idProducto, @fechaingreso)
+	COMMIT Transaction
+	END TRY
+	BEGIN CATCH
+		PRINT 'ERROR 415'
+		ROLLBACK TRANSACTION
+	END CATCH
+GO
+
+CREATE PROCEDURE sp_InsertRegistroProducto
+@idRegistro INT,
+@idProducto INT,
+@cantidadIngresada VARCHAR(1000)
+AS
+	BEGIN TRY
+	BEGIN TRANSACTION
+		INSERT INTO RegistroProducto(CodigoRegistro, CodigoProducto, CantidadIngresada)
+							  VALUES(@idRegistro, @idProducto, @cantidadIngresada)
+	COMMIT Transaction
+	END TRY
+	BEGIN CATCH
+		PRINT 'ERROR 69'
+		ROLLBACK TRANSACTION
+	END CATCH
+GO
+
+
+
