@@ -1,86 +1,217 @@
 CREATE DATABASE ProyectoMedico
 USE ProyectoMedico
 
+--REGLA RANGO DE Lista de Valores(REGLA CON LISTA DE VALORES)
+CREATE RULE dbo.Prioridad_rule
+AS @lista IN('1', '2', '3');
+	CREATE TYPE dbo.Prioridad_type FROM [INT] NOT NULL
+GO
+CREATE DEFAULT dbo.DF_Prioridad
+	AS '1'
+GO
+EXEC sys.sp_bindefault @defname = N'[dbo].[DF_Prioridad]',
+	@objname = N'[dbo].[Prioridad_type]',@futureonly='futureonly'
+GO
+
+EXEC sys.sp_bindrule @rulename = N'[dbo].[Prioridad_rule]',
+	@objname = N'[dbo].[Prioridad_type]' , @futureonly = 'futureonly'
+GO
+--REGLA RANGO DE Lista de Valores(REGLA CON LISTA DE VALORES)
+CREATE RULE dbo.GravedadProblema_rule
+AS @lista IN('0', '1', '2', '3','4','5');
+	CREATE TYPE dbo.GravedadProblema_type FROM [INT] NOT NULL
+GO
+CREATE DEFAULT dbo.DF_GravedadProblema
+	AS '0'
+GO
+EXEC sys.sp_bindefault @defname = N'[dbo].[DF_GravedadProblema]',
+	@objname = N'[dbo].[GravedadProblema_type]',@futureonly='futureonly'
+GO
+
+EXEC sys.sp_bindrule @rulename = N'[dbo].[GravedadProblema_rule]',
+	@objname = N'[dbo].[GravedadProblema_type]' , @futureonly = 'futureonly'
+GO
+--REGLA RANGO DE VALORES Horario
+CREATE RULE dbo.Hora_rule
+AS @Hora >= 6 AND @Hora <= 21;
+	CREATE TYPE dbo.Horario_type FROM [INT] NOT NULL
+GO
+CREATE DEFAULT dbo.DF_Hora
+	AS '21'
+GO
+EXEC sys.sp_bindefault @defname = N'[dbo].[DF_Hora]',
+	@objname = N'[dbo].[Horario_type]',@futureonly='futureonly'
+GO
+
+EXEC sys.sp_bindrule @rulename = N'[dbo].[Hora_rule]',
+	@objname = N'[dbo].[Horario_type]' , @futureonly = 'futureonly'
+GO
+--REGLA RANGO DE VALORES CantidadProducto
+CREATE RULE dbo.CantidadProducto_rule
+AS @Cantidad >=0;
+	CREATE TYPE dbo.CantidadProducto_type FROM [INT] NOT NULL
+GO
+CREATE DEFAULT dbo.DF_CantidadProducto
+	AS '0'
+GO
+EXEC sys.sp_bindefault @defname = N'[dbo].[DF_CantidadProducto]',
+	@objname = N'[dbo].[CantidadProducto_type]',@futureonly='futureonly'
+GO
+
+EXEC sys.sp_bindrule @rulename = N'[dbo].[CantidadProducto_rule]',
+	@objname = N'[dbo].[CantidadProducto_type]' , @futureonly = 'futureonly'
+GO
+--REGLA CON OPCION GENERO
+CREATE RULE dbo.Genero_rule
+AS @Genero IN('F', 'M', 'SG');
+	CREATE TYPE dbo.Genero_type FROM [NVARCHAR](2) NOT NULL
+GO
+CREATE DEFAULT dbo.DF_Genero
+	AS 'SG'
+GO
+EXEC sys.sp_bindefault @defname = N'[dbo].[DF_Genero]',
+	@objname = N'[dbo].[Genero_type]',@futureonly='futureonly'
+GO
+
+EXEC sys.sp_bindrule @rulename = N'[dbo].[Genero_rule]',
+	@objname = N'[dbo].[Genero_type]' , @futureonly = 'futureonly'
+GO
+--REGLA CON OPCION ESTATUS
+CREATE RULE dbo.Estatus_rule
+AS @estatus IN(1,0);
+	CREATE TYPE dbo.Estatus_type FROM [bit] NOT NULL
+GO
+CREATE DEFAULT dbo.DF_Estatus
+	AS '1'
+GO
+EXEC sys.sp_bindefault @defname = N'[dbo].[DF_Estatus]',
+	@objname = N'[dbo].[Estatus_type]',@futureonly='futureonly'
+GO
+
+EXEC sys.sp_bindrule @rulename = N'[dbo].[Estatus_rule]',
+	@objname = N'[dbo].[Estatus_type]' , @futureonly = 'futureonly'
+GO
+--REGLA CON PATRÓN NOMBRE
+USE TestDB1
+CREATE RULE [dbo].[Nombre_rule]
+	AS @Nombre NOT LIKE '%[^a-zA-Z]%';
+CREATE TYPE dbo.Nombre_type FROM [NVARCHAR](30) NOT NULL
+GO
+CREATE DEFAULT dbo.DF_Nombre
+	AS 'Anónimo'
+GO
+EXEC sys.sp_bindefault @defname = N'[dbo].[DF_Nombre]',
+	@objname = N'[dbo].[Nombre_type]',@futureonly='futureonly'
+GO
+
+EXEC sys.sp_bindrule @rulename = N'[dbo].[Nombre_rule]',
+	@objname = N'[dbo].[Nombre_type]' , @futureonly = 'futureonly'
+GO
+--REGLA CON PATRÓN EMPRESA
+CREATE RULE dbo.NombreLaboratorio_rule
+AS @NameEmpresa NOT LIKE '%[^a-zA-Z0-9]%';
+	CREATE TYPE dbo.NombreLaboratorio_type FROM [NVARCHAR](200) NOT NULL
+GO
+CREATE DEFAULT dbo.DF_NombreLaboratorio
+	AS 'Sin Registro de Nombre'
+GO
+EXEC sys.sp_bindefault @defname = N'[dbo].[DF_NombreLaboratorio]',
+	@objname = N'[dbo].[NombreLaboratorio_type]',@futureonly='futureonly'
+GO
+
+EXEC sys.sp_bindrule @rulename = N'[dbo].[NombreLaboratorio_rule]',
+	@objname = N'[dbo].[NombreLaboratorio_type]' , @futureonly = 'futureonly'
+GO
+
+
+
+--CREACION DE LA TABLA PERSONA
 CREATE TABLE Persona(
 	CodigoPersona INT PRIMARY KEY IDENTITY, 	
-	Nombre VARCHAR(20) NOT NULL,
-	ApellidoP VARCHAR(20) NOT NULL,
-	ApellidoM VARCHAR(20) NOT NULL
-
+	Nombre Nombre_type NOT NULL,
+	ApellidoP Nombre_type NOT NULL,
+	ApellidoM Nombre_type NOT NULL,
+	NombreCompleto AS(Nombre + ' ' + ApellidoP+ ' ' + ApellidoM),
+	CONSTRAINT UC_Persona UNIQUE (NombreCompleto)
 )
 
+--CREACION DE LA TABLA MEDICO
 CREATE TABLE Medico(
 	CodigoMedico INT PRIMARY KEY IDENTITY,
-	CodigoPersona INT NOT NULL FOREIGN KEY REFERENCES Persona(CodigoPersona),
+	CodigoPersona INT NOT NULL FOREIGN KEY REFERENCES Persona(CodigoPersona) ON DELETE CASCADE ON UPDATE CASCADE,
 	Vocacion VARCHAR (40) NOT NULL,
 	Consultorio INT NOT NULL,
 	CedulaProfesional VARCHAR (30) NOT NULL,
-	RegistroSalubridad VARCHAR(30) NOT NULL
+	RegistroSalubridad VARCHAR(30) NOT NULL,
+	Estatus Estatus_type,
+	CONSTRAINT UC_Vocacion UNIQUE (Vocacion),
+	CONSTRAINT UC_Cedula UNIQUE (CedulaProfesional)
 )
---UNION DE REGLAS--
-CREATE RULE dbo.Nombre_rule
-AS @Nombre NOT LIKE ('%[^a-zA-Z]%') 
-GO
 
-EXEC sys.sp_bindefault @defname = N'[dbo].[DefEstatus]',
-	@objname = N'[dbo].[estatus_type]',@futureonly='futureonly'
-GO
-
-EXEC sys.sp_bindrule @rulename = N'[dbo].[estatus_rule]',
-	@objname = N'[dbo].[estatus_type]' , @futureonly = 'futureonly'
-GO
+--CREACION DE LA TABLA PACIENTE
 CREATE TABLE Paciente(
 	CodigoPaciente INT PRIMARY KEY IDENTITY,
-	CodigoPersona INT NOT NULL FOREIGN KEY REFERENCES Persona(CodigoPersona),
-	Sexo VARCHAR (15) NOT NULL,
+	CodigoPersona INT NOT NULL FOREIGN KEY REFERENCES Persona(CodigoPersona) ON DELETE CASCADE ON UPDATE CASCADE,
+	Sexo Genero_type NOT NULL,
+	Prioridad Prioridad_type NOT NULL
 )
+--CREACION DE LA TABLA VISITAS
 CREATE TABLE Visita(
 	CodigoVisita INT PRIMARY KEY IDENTITY,
 	NoVisita VARCHAR(1000)
 )
+--CREACION DE LA TABLA CITAS
 CREATE TABLE Cita(
 	CodigoCita INT PRIMARY KEY IDENTITY,
-	CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente),
-	CodigoMedico INT NOT NULL FOREIGN KEY REFERENCES Medico(CodigoMedico),
-	CodigoVisita INT NOT NULL FOREIGN KEY REFERENCES Visita(CodigoVisita),
+	CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente) ON DELETE CASCADE ON UPDATE CASCADE,
+	CodigoMedico INT NOT NULL FOREIGN KEY REFERENCES Medico(CodigoMedico) ON DELETE CASCADE ON UPDATE CASCADE,
+	CodigoVisita INT NOT NULL FOREIGN KEY REFERENCES Visita(CodigoVisita) ON DELETE CASCADE ON UPDATE CASCADE,
 	Fecha DATE NOT NULL,
-	Hora FLOAT NOT NULL,
+	Hora Horario_type NOT NULL,
 	Costo FLOAT NOT NULL
 )
+--CREACION DE LA TABLA REGISTROS
 CREATE TABLE Registro(
 		CodigoRegistro INT PRIMARY KEY IDENTITY,
-		CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente),
+		CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente) ON DELETE CASCADE ON UPDATE CASCADE,
 		PeriodoIngesta VARCHAR(30),
-		Problema VARCHAR(1000)
+		Problema VARCHAR(1000),
+		GravedadProblema GravedadProblema_type
 )
+--CREACION DE LA TABLA LABORATORIOS
 CREATE TABLE Laboratorio(
 		CodigoLaboratorio INT PRIMARY KEY IDENTITY,
 		CodigoLab VARCHAR(200),
-		Nombre VARCHAR(200) UNIQUE
+		Nombre NombreLaboratorio_type UNIQUE,
+		Estatus Estatus_type
 )
+--CREACION DE LA TABLA PRODUCTOS
 CREATE TABLE Producto(
 		CodigoProducto INT PRIMARY KEY IDENTITY,
-		CodigoLaboratorio INT NOT NULL FOREIGN KEY REFERENCES Laboratorio(CodigoLaboratorio),
-		Nombre VARCHAR (50) NOT NULL,
-		Cantidad VARCHAR(1000)  NOT NULL,
+		CodigoLaboratorio INT NOT NULL FOREIGN KEY REFERENCES Laboratorio(CodigoLaboratorio) ON DELETE CASCADE ON UPDATE CASCADE,
+		Nombre Nombre_type NOT NULL,
+		Cantidad CantidadProducto_type NOT NULL,
 		Descripcion VARCHAR(1000)  NOT NULL,
 		Categoria Varchar(100)
 )
+--CREACION DE LA TABLA RELACION PRODUCTO MEDICO
 CREATE TABLE MedicoProducto(
 		CodigoMedicoProducto INT PRIMARY KEY IDENTITY,
-		CodigoMedico INT NOT NULL FOREIGN KEY REFERENCES Medico(CodigoMedico),
-		CodigoProducto INT NOT NULL FOREIGN KEY REFERENCES Producto(CodigoProducto),
+		CodigoMedico INT NOT NULL FOREIGN KEY REFERENCES Medico(CodigoMedico) ON DELETE CASCADE ON UPDATE CASCADE,
+		CodigoProducto INT NOT NULL FOREIGN KEY REFERENCES Producto(CodigoProducto) ON DELETE CASCADE ON UPDATE CASCADE,
 		FechaIngreso DATE NOT NULL
 )
+--CREACION DE LA TABLA RELACION REGISTRO PRODUCTO
 CREATE TABLE RegistroProducto(
 		CodigoRegistroProducto INT PRIMARY KEY IDENTITY,
-		CodigoRegistro INT NOT NULL FOREIGN KEY REFERENCES Registro(CodigoRegistro),
-		CodigoProducto INT NOT NULL FOREIGN KEY REFERENCES Producto(CodigoProducto),
+		CodigoRegistro INT NOT NULL FOREIGN KEY REFERENCES Registro(CodigoRegistro) ON DELETE CASCADE ON UPDATE CASCADE,
+		CodigoProducto INT NOT NULL FOREIGN KEY REFERENCES Producto(CodigoProducto) ON DELETE CASCADE ON UPDATE CASCADE,
 		CantidadIngresada VARCHAR(1000) NOT NULL
 )
+--CREACION DE LA TABLA HistorialMedico por Paciente
 CREATE TABLE HistorialMedico(
 		CodigoHistorialMedico INT PRIMARY KEY IDENTITY,
-		CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente),
+		CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente) ON DELETE CASCADE ON UPDATE CASCADE,
 		Edad VARCHAR (100) NOT NULL,
 		Estatura VARCHAR (6) NOT NULL,
 		Sexo VARCHAR (15) NOT NULL,
