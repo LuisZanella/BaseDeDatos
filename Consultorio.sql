@@ -429,7 +429,8 @@ AS
 		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
 		INNER JOIN Cita C
 		ON C.CodigoMedico = M.CodigoMedico
-		WHERE M.Estatus = 1 AND C.FechaInicio = GETDATE() AND E.Especialidad LIKE 'CIRUGÍA%'
+		WHERE M.Estatus = 1 AND E.Especialidad LIKE '%CIRUGÍA%'
+		GROUP BY P.NombreCompleto, E.Especialidad
 		HAVING COUNT(C.CodigoCita)<2
 			UNION 
 		SELECT P.NombreCompleto, E.Especialidad, COUNT(C.CodigoCita) 'Numero de Citas'
@@ -442,7 +443,8 @@ AS
 		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
 		INNER JOIN Cita C
 		ON C.CodigoMedico = M.CodigoMedico
-		WHERE M.Estatus = 1 AND C.FechaInicio = GETDATE() AND E.Especialidad LIKE 'MEDICINA%'
+		WHERE M.Estatus = 1 AND E.Especialidad LIKE 'MEDICINA%'
+		GROUP BY P.NombreCompleto, E.Especialidad, COUNT(C.CodigoCita)
 		HAVING COUNT(C.CodigoCita)<2
 		)
 			EXCEPT
@@ -456,8 +458,10 @@ AS
 		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
 		INNER JOIN Cita C
 		ON C.CodigoMedico = M.CodigoMedico
-		WHERE M.Estatus = 1 AND C.FechaInicio = GETDATE() AND E.Especialidad LIKE 'MEDICINA NUCLEAR'
+		WHERE M.Estatus = 1 AND E.Especialidad LIKE 'MEDICINA NUCLEAR'
+		GROUP BY P.NombreCompleto, E.Especialidad, COUNT(C.CodigoCita)
 		)j
+		GROUP BY j.NombreCompleto, j.Especialidad, j.[Numero de Citas]
 GO
 --- VISTA QUE MUESTRA TODOS LOS LABORATORIOS QUE HAN VENDIDO 1 sola vez Y MAS DE 5 veces *A LOS MEDICOS CON MAS PACIENTES* QUITANDO LOS QUE SU ESTATUS ES 0
 CREATE VIEW view_LaboratoriosMasVENDEN
