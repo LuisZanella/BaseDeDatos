@@ -233,7 +233,6 @@ CREATE TABLE Producto(
 		Descripcion VARCHAR(1000) DEFAULT 'Sin Descripción',
 		Categoria Varchar(100)
 )
-SELECT * FROM Laboratorio
 
 --CREACION DE LA TABLA RELACION PRODUCTO MEDICO
 CREATE TABLE MedicoProducto(
@@ -276,6 +275,8 @@ AS
 		WHERE CodigoCita = (SELECT CodigoCita FROM inserted)
 	END
 GO
+SELECT * FROM Cita
+UPDATE Cita SET Estatus = 0 WHERE CodigoCita = 1;
 
 CREATE TRIGGER tgr_EdadPaciente
 ON HistorialMedico
@@ -293,7 +294,9 @@ AS
 		WHERE CodigoHistorialMedico = (SELECT CodigoHistorialMedico FROM inserted)
 		END
 GO
-
+insert into HistorialMedico (Estatura, Ocupacion, PadecimientoActual, IngestaMedicamento, AntecedenteFamiliar, AntecedentePersonal, CodigoPaciente) values ( 1.75, 'Quality Control Specialist', 'Toxic effect of venom of caterpillars, accidental, init', 'Toxic effect of venom of caterpillars, accidental (unintentional), initial encounter', 'Phlebitis and thrombophlebitis of femoral vein (deep) (superficial)', 'Femoral vein phlebitis', 1);
+SELECT * FROM HistorialMedico WHERE CodigoPaciente = 1;
+SELECT * FROM Paciente WHERE CodigoPaciente= 1;
 
 -------PROCEDIMIENTOS ALMACENADOS INSERTS
 CREATE PROCEDURE sp_InsertMedico
@@ -308,13 +311,15 @@ AS
 	INSERT INTO Persona(Nombre, ApellidoP, ApellidoM)
 				 VALUES(@Persona, @paterno, @materno)
 	DECLARE @id INT = (SELECT MAX(CodigoPersona) FROM Persona)
-	DECLARE @tipo INT = (SELECT TOP 1(CodigoEspecialidad) FROM Especialidad WHERE Especialidad =  @especialidad OR Especialidad LIKE '%'+@especialidad+'%' OR Especialidad LIKE @especialidad+'%' OR Especialidad LIKE '%'+@especialidad)   
+	DECLARE @tipo INT = (SELECT TOP 1(CodigoEspecialidad) FROM Especialidad WHERE Especialidad =  @especialidad OR 
+	Especialidad LIKE '%'+@especialidad+'%' OR Especialidad LIKE @especialidad+'%' OR Especialidad LIKE '%'+@especialidad)   
 	INSERT INTO Medico(CodigoPersona, Consultorio, CedulaProfesional, RegistroSalubridad)
 				VALUES(@id, @consultorio, @cedula, @salubridad)
 	DECLARE @idMedico INT = (SELECT MAX(CodigoMedico) FROM Medico)
 	INSERT INTO EspecialidadMedico (CodigoEspecialidad, CodigoMedico) VALUES (@tipo,@idMedico)
 GO
-
+SELECT * FROM Medico
+EXEC sp_InsertMedico 'Juan','Zanella', 'Enriquez', 'CIRU', 3, 'AJDSHAS123', 'ASJIWHIHW13123'
 CREATE PROCEDURE sp_InsertPersona
 @Persona VARCHAR(20),
 @paterno VARCHAR(20),
@@ -328,7 +333,11 @@ AS
 	INSERT INTO Paciente(CodigoPersona, Sexo, FechaNacimiento)
 				  VALUES(@id, @sexo, @fechaNacimiento)
 GO
+SELECT * FROM Persona
+SELECT * FROM Paciente
+EXEC sp_InsertPersona 'Pedro','Corona', 'Ramirez','M', '2015-04-02'
 
+/*COMO EJECUTAR ESTE*/ 
 CREATE TYPE ProductoType AS TABLE(
 	IdProducto INT,
 	Nombre VARCHAR (50) NOT NULL,
@@ -367,6 +376,7 @@ AS
 	ON H.CodigoPaciente = HM.CodigoPaciente 
 	WHERE R.Nombre = @nombreMedico
 GO
+EXEC sp_PacientesAtendidosPorMedico 'Marco'
 
 CREATE PROCEDURE sp_CitasFecha
 @fecha DATE
@@ -376,7 +386,7 @@ AS
 	WHERE FechaInicio = @fecha
 GO
 
-
+EXEC sp_CitasFecha '2010-10-26'
 -------PROCEDIMIENTOS ALMACENADOS CON TRY CATCH
 CREATE PROCEDURE sp_InsertMedicoProducto
 @idMedico INT,
@@ -394,7 +404,8 @@ AS
 		ROLLBACK TRANSACTION
 	END CATCH
 GO
-
+SELECT * FROM MedicoProducto
+EXEC sp_InsertMedicoProducto 2,5,'2013-02-12'
 CREATE PROCEDURE sp_InsertRegistroProducto
 @idRegistro INT,
 @idProducto INT,
@@ -411,9 +422,10 @@ AS
 		ROLLBACK TRANSACTION
 	END CATCH
 GO
+SELECT * FROM RegistroProducto
+EXEC sp_InsertRegistroProducto 2,5,'ingerir 4 pastillas'
 --------------------------------
---Trae todos los medicos que su especialidad es cirugia o medicina excluyendo los medicos de Medicina Nuclear
---Y tienen menos de dos pacientes el dia actual
+--Trae todos los medicos que su especialidad es cirugia o medicina excluyendo los medicos de cuyo consultorio es mayor a 60 y han tenido más de dos pasientes
 
 CREATE VIEW view_MedicosSinConsultasDia
 AS
@@ -429,7 +441,7 @@ AS
 		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
 		INNER JOIN Cita C
 		ON C.CodigoMedico = M.CodigoMedico
-		WHERE M.Estatus = 1 AND E.Especialidad LIKE '%CIRUGÍA%'
+		WHERE M.Estatus = 1 AND E.Especialidad LIKE 'CIRUGÍA%'
 		GROUP BY P.NombreCompleto, E.Especialidad
 		HAVING COUNT(C.CodigoCita)<2
 			UNION 
@@ -444,7 +456,7 @@ AS
 		INNER JOIN Cita C
 		ON C.CodigoMedico = M.CodigoMedico
 		WHERE M.Estatus = 1 AND E.Especialidad LIKE 'MEDICINA%'
-		GROUP BY P.NombreCompleto, E.Especialidad, COUNT(C.CodigoCita)
+		GROUP BY P.NombreCompleto, E.Especialidad
 		HAVING COUNT(C.CodigoCita)<2
 		)
 			EXCEPT
@@ -458,12 +470,14 @@ AS
 		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
 		INNER JOIN Cita C
 		ON C.CodigoMedico = M.CodigoMedico
-		WHERE M.Estatus = 1 AND E.Especialidad LIKE 'MEDICINA NUCLEAR'
-		GROUP BY P.NombreCompleto, E.Especialidad, COUNT(C.CodigoCita)
+		WHERE M.Estatus = 1 AND M.Consultorio >60
+		GROUP BY P.NombreCompleto, E.Especialidad
 		)j
-		GROUP BY j.NombreCompleto, j.Especialidad, j.[Numero de Citas]
 GO
---- VISTA QUE MUESTRA TODOS LOS LABORATORIOS QUE HAN VENDIDO 1 sola vez Y MAS DE 5 veces *A LOS MEDICOS CON MAS PACIENTES* QUITANDO LOS QUE SU ESTATUS ES 0
+
+SELECT * FROM view_MedicosSinConsultasDia
+--- VISTA QUE MUESTRA TODOS LOS LABORATORIOS QUE HAN VENDIDO 1 sola vez Y MAS DE 5 veces QUITANDO LOS QUE SU ESTATUS ES 0
+
 CREATE VIEW view_LaboratoriosMasVENDEN
 AS
 	SELECT j.Empresa, j.[Productos Vendidos]
@@ -484,6 +498,7 @@ AS
 		ON Pr.CodigoProducto = MP.CodigoProducto 
 		INNER JOIN Laboratorio L
 		ON L.CodigoLaboratorio = Pr.CodigoLaboratorio
+		GROUP BY L.Nombre
 		HAVING COUNT(MP.CodigoMedicoProducto)=1
 			UNION 
 				SELECT L.Nombre Empresa, COUNT(MP.CodigoMedicoProducto) 'Productos Vendidos'
@@ -502,7 +517,8 @@ AS
 		ON Pr.CodigoProducto = MP.CodigoProducto 
 		INNER JOIN Laboratorio L
 		ON L.CodigoLaboratorio = Pr.CodigoLaboratorio
-		HAVING COUNT(MP.CodigoMedicoProducto)>5
+		GROUP BY L.Nombre
+		HAVING COUNT(MP.CodigoMedicoProducto)>150
 		)
 			EXCEPT
 		SELECT L.Nombre Empresa, COUNT(MP.CodigoMedicoProducto) 'Productos Vendidos'
@@ -522,6 +538,64 @@ AS
 		INNER JOIN Laboratorio L
 		ON L.CodigoLaboratorio = Pr.CodigoLaboratorio
 		WHERE L.Estatus = 0
+		GROUP BY L.Nombre
 		)j
 GO
 
+SELECT * FROM view_LaboratoriosMasVENDEN
+
+CREATE VIEW EspecialidadesPorMedico AS
+(
+SELECT CONCAT(P.Nombre, P.ApellidoP, P.ApellidoM) AS MEDICO, COUNT(EP.Especialidad) Especialidades
+FROM EspecialidadMedico E INNER JOIN Medico M
+ON E.CodigoMedico = M.CodigoMedico INNER JOIN Persona P
+ON M.CodigoPersona = P.CodigoPersona INNER JOIN Especialidad EP
+ON E.CodigoEspecialidad = EP.CodigoEspecialidad
+GROUP BY CONCAT(P.Nombre, P.ApellidoP, P.ApellidoM), EP.Especialidad    
+HAVING COUNT(EP.Especialidad) > 2
+)
+GO
+SELECT * FROM EspecialidadesPorMedico
+CREATE VIEW GananciaPorMedicoAlDia AS
+(
+	SELECT SUM(Costo) AS 'Dinero Total Ganado', CONCAT (P.Nombre,'  ' ,P.ApellidoM,'  ', P.ApellidoP) AS 'Nombre del medico'
+	FROM Cita C INNER JOIN Medico M
+	ON C.CodigoMedico = M.CodigoMedico
+	INNER JOIN Persona P
+	ON M.CodigoPersona = P.CodigoPersona
+	WHERE FechaInicio = GETDATE()
+	GROUP BY P.Nombre, P.ApellidoM,P.ApellidoP
+)
+GO
+SELECT * FROM GananciaPorMedicoAlDia
+CREATE VIEW ProductosPorLaboratorio AS
+(
+    SELECT L.CodigoLab AS CODIGO_LABORATORIO, L.Nombre AS NOMBRE_LABORATORIO, P.Nombre AS NOMBRE_MEDICAMENTO, P.Cantidad AS CANTIDAD_MEDICAMENTO, COUNT (P.CodigoLaboratorio) Productos
+    FROM Laboratorio L INNER JOIN Producto P
+    ON L.CodigoLaboratorio = P.CodigoLaboratorio
+    GROUP BY L.CodigoLab ,L.Nombre, P.Nombre, P.Cantidad
+    HAVING COUNT(L.CodigoLaboratorio) > 0
+)
+GO
+SELECT * FROM ProductosPorLaboratorio
+CREATE VIEW PadecimientodePaciente AS
+(
+    SELECT Pe.NombreCompleto AS NOMBRE_PACIENTE, P.Sexo AS SEXO, H.Edad AS EDAD, H.PadecimientoActual AS PADECIMIENTO
+    FROM HistorialMedico H INNER JOIN Paciente P
+    ON H.CodigoPaciente = P.CodigoPaciente INNER JOIN Persona Pe
+    ON P.CodigoPersona = Pe.CodigoPersona
+)
+GO
+SELECT * FROM PadecimientodePaciente
+CREATE VIEW MedicamentoRecetadoPorPaciente AS
+(
+    SELECT PE.NombreCompleto, PR.Nombre AS NOMBRE_PRODUCTO
+    FROM RegistroProducto RP INNER JOIN Registro R
+    ON RP.CodigoRegistro = R.CodigoRegistro INNER JOIN Paciente PA
+    ON R.CodigoPaciente = PA.CodigoPaciente INNER JOIN Persona PE
+    ON PA.CodigoPersona = PE.CodigoPersona INNER JOIN Producto PR
+    ON RP.CodigoProducto = PR.CodigoProducto
+    GROUP BY PA.CodigoPaciente, PE.NombreCompleto, PR.Nombre
+)
+GO
+SELECT * FROM MedicamentoRecetadoPorPaciente
