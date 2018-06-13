@@ -140,13 +140,24 @@ GO
 CREATE TABLE Medico(
 	CodigoMedico INT PRIMARY KEY IDENTITY,
 	CodigoPersona INT NOT NULL FOREIGN KEY REFERENCES Persona(CodigoPersona) ON DELETE CASCADE ON UPDATE CASCADE,
-	Vocacion VARCHAR (40) NOT NULL,
 	Consultorio INT NOT NULL,
 	CedulaProfesional VARCHAR (30) NOT NULL,
 	RegistroSalubridad VARCHAR(30) NOT NULL,
 	Estatus Estatus_type,
-	CONSTRAINT UC_Vocacion UNIQUE (Vocacion),
 	CONSTRAINT UC_Cedula UNIQUE (CedulaProfesional)
+)
+GO
+--CREACION DE LA TABLA Vocacion
+CREATE TABLE Especialidad(
+	CodigoEspecialidad INT PRIMARY KEY IDENTITY,
+	Especialidad VARCHAR (100) NOT NULL
+)
+GO
+--CREACION DE LA TABLA VocacionMedico
+CREATE TABLE EspecialidadMedico(
+	CodigoVocacionMedico INT PRIMARY KEY IDENTITY,
+	CodigoMedico INT NOT NULL FOREIGN KEY REFERENCES Medico(CodigoMedico) ON DELETE CASCADE ON UPDATE CASCADE,
+	CodigoEspecialidad INT NOT NULL FOREIGN KEY REFERENCES Especialidad(CodigoEspecialidad) ON DELETE CASCADE ON UPDATE CASCADE
 )
 GO
 
