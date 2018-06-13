@@ -1,11 +1,14 @@
 CREATE DATABASE ProyectoMedico
 USE ProyectoMedico
-
+GO
 --REGLA RANGO DE Lista de Valores(REGLA CON LISTA DE VALORES)
+
 CREATE RULE dbo.Prioridad_rule
 AS @lista IN('1', '2', '3');
+--CREACION DE Tipo de Dato PRIORIDAD
 	CREATE TYPE dbo.Prioridad_type FROM [INT] NOT NULL
 GO
+--CREAR DEFAULT Para la Prioridad
 CREATE DEFAULT dbo.DF_Prioridad
 	AS '1'
 GO
@@ -19,6 +22,7 @@ GO
 --REGLA RANGO DE Lista de Valores(REGLA CON LISTA DE VALORES)
 CREATE RULE dbo.GravedadProblema_rule
 AS @lista IN('0', '1', '2', '3','4','5');
+-- CREACION DEL Tipo de GRAVERDAD DEL PROBLEMA
 	CREATE TYPE dbo.GravedadProblema_type FROM [INT] NOT NULL
 GO
 CREATE DEFAULT dbo.DF_GravedadProblema
@@ -34,6 +38,7 @@ GO
 --REGLA RANGO DE VALORES Horario
 CREATE RULE dbo.Hora_rule
 AS @Hora >= 6 AND @Hora <= 21;
+--Tipo DE Dato horario Horario
 	CREATE TYPE dbo.Horario_type FROM [INT] NOT NULL
 GO
 CREATE DEFAULT dbo.DF_Hora
@@ -49,6 +54,7 @@ GO
 --REGLA RANGO DE VALORES CantidadProducto
 CREATE RULE dbo.CantidadProducto_rule
 AS @Cantidad >=0;
+--Tipo CantidadProducto
 	CREATE TYPE dbo.CantidadProducto_type FROM [INT] NOT NULL
 GO
 CREATE DEFAULT dbo.DF_CantidadProducto
@@ -64,6 +70,7 @@ GO
 --REGLA CON OPCION GENERO
 CREATE RULE dbo.Genero_rule
 AS @Genero IN('F', 'M', 'SG');
+--CREACION DEL TIPO DE DATO GENERO
 	CREATE TYPE dbo.Genero_type FROM [NVARCHAR](2) NOT NULL
 GO
 CREATE DEFAULT dbo.DF_Genero
@@ -79,6 +86,7 @@ GO
 --REGLA CON OPCION ESTATUS
 CREATE RULE dbo.Estatus_rule
 AS @estatus IN(1,0);
+-- CREACION DEL TIPO DE ESTATUS
 	CREATE TYPE dbo.Estatus_type FROM [bit] NOT NULL
 GO
 CREATE DEFAULT dbo.DF_Estatus
@@ -92,9 +100,9 @@ EXEC sys.sp_bindrule @rulename = N'[dbo].[Estatus_rule]',
 	@objname = N'[dbo].[Estatus_type]' , @futureonly = 'futureonly'
 GO
 --REGLA CON PATRÓN NOMBRE
-USE TestDB1
 CREATE RULE [dbo].[Nombre_rule]
 	AS @Nombre NOT LIKE '%[^a-zA-Z]%';
+--CREACION DEL Tipo de Dato Nombre
 CREATE TYPE dbo.Nombre_type FROM [NVARCHAR](30) NOT NULL
 GO
 CREATE DEFAULT dbo.DF_Nombre
@@ -147,15 +155,15 @@ CREATE TABLE Medico(
 	CONSTRAINT UC_Cedula UNIQUE (CedulaProfesional)
 )
 GO
---CREACION DE LA TABLA Vocacion
+--CREACION DE LA TABLA Especialidad
 CREATE TABLE Especialidad(
 	CodigoEspecialidad INT PRIMARY KEY IDENTITY,
 	Especialidad VARCHAR (100) NOT NULL
 )
 GO
---CREACION DE LA TABLA VocacionMedico
+--CREACION DE LA TABLA EspecialidadMedico
 CREATE TABLE EspecialidadMedico(
-	CodigoVocacionMedico INT PRIMARY KEY IDENTITY,
+	CodigoEspecialidadMedico INT PRIMARY KEY IDENTITY,
 	CodigoMedico INT NOT NULL FOREIGN KEY REFERENCES Medico(CodigoMedico) ON DELETE CASCADE ON UPDATE CASCADE,
 	CodigoEspecialidad INT NOT NULL FOREIGN KEY REFERENCES Especialidad(CodigoEspecialidad) ON DELETE CASCADE ON UPDATE CASCADE
 )
@@ -166,22 +174,25 @@ CREATE TABLE Paciente(
 	CodigoPaciente INT PRIMARY KEY IDENTITY,
 	CodigoPersona INT NOT NULL FOREIGN KEY REFERENCES Persona(CodigoPersona) ON DELETE CASCADE ON UPDATE CASCADE,
 	Sexo Genero_type NOT NULL,
-	FechaNacimiento DATE NOT NULL
+	FechaNacimiento DATE NOT NULL,
 	Prioridad Prioridad_type NOT NULL
 )
 --CREACION DE LA TABLA VISITAS
 CREATE TABLE Visita(
 	CodigoVisita INT PRIMARY KEY IDENTITY,
-	NoVisita VARCHAR(1000)
+	Descripcion VARCHAR(1000) DEFAULT 'Sin Descripción'
 )
+
+
 --CREACION DE LA TABLA CITAS
 CREATE TABLE Cita(
 	CodigoCita INT PRIMARY KEY IDENTITY,
 	CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente) ON DELETE CASCADE ON UPDATE CASCADE,
-	CodigoMedico INT NOT NULL FOREIGN KEY REFERENCES Medico(CodigoMedico) ON DELETE CASCADE ON UPDATE CASCADE,
+	CodigoMedico INT NOT NULL FOREIGN KEY REFERENCES Medico(CodigoMedico),
 	CodigoVisita INT NOT NULL FOREIGN KEY REFERENCES Visita(CodigoVisita) ON DELETE CASCADE ON UPDATE CASCADE,
 	FechaInicio DATE NOT NULL,
 	FechaFinal DATETIME NULL,
+	Costo FLOAT NOT NULL,
 	Hora Horario_type NOT NULL,
 	Estatus Estatus_type
 )
@@ -196,19 +207,22 @@ CREATE TABLE Registro(
 --CREACION DE LA TABLA LABORATORIOS
 CREATE TABLE Laboratorio(
 		CodigoLaboratorio INT PRIMARY KEY IDENTITY,
-		CodigoLab VARCHAR(200),
-		Nombre NombreLaboratorio_type UNIQUE,
-		Estatus Estatus_type
+		CodigoLab VARCHAR(200) NOT NULL,
+		Nombre NombreLaboratorio_type,
+		Estatus Estatus_type,
+		CONSTRAINT UC_LaboratiorioVerificacion UNIQUE (CodigoLab,Nombre)
 )
+
 --CREACION DE LA TABLA PRODUCTOS
 CREATE TABLE Producto(
 		CodigoProducto INT PRIMARY KEY IDENTITY,
 		CodigoLaboratorio INT NOT NULL FOREIGN KEY REFERENCES Laboratorio(CodigoLaboratorio) ON DELETE CASCADE ON UPDATE CASCADE,
 		Nombre Nombre_type NOT NULL,
 		Cantidad CantidadProducto_type NOT NULL,
-		Descripcion VARCHAR(1000)  NOT NULL,
+		Descripcion VARCHAR(1000) DEFAULT 'Sin Descripción',
 		Categoria Varchar(100)
 )
+
 --CREACION DE LA TABLA RELACION PRODUCTO MEDICO
 CREATE TABLE MedicoProducto(
 		CodigoMedicoProducto INT PRIMARY KEY IDENTITY,
@@ -226,7 +240,7 @@ CREATE TABLE RegistroProducto(
 --CREACION DE LA TABLA HistorialMedico por Paciente
 CREATE TABLE HistorialMedico(
 		CodigoHistorialMedico INT PRIMARY KEY IDENTITY,
-		CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente),
+		CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente) ON DELETE CASCADE ON UPDATE CASCADE,
 		Edad VARCHAR (100) NULL,
 		Estatura VARCHAR (6) NOT NULL,
 		Sexo VARCHAR (15) NOT NULL,
@@ -237,240 +251,6 @@ CREATE TABLE HistorialMedico(
 		AntecedentePersonal VARCHAR (1000) NOT NULL
 )
 GO
------------------------------------------
-
-INSERT INTO Persona(Nombre,ApellidoM, ApellidoP)
-VALUES 	('Laura', 'Contreras','López'),
-		('Juan','Barrera', 'Hidalgo'),
-		('Rodolfo','Perez','Castro'),
-		('Cuellar', 'Atilano', 'Perez'),
-		('Regina','Pineda','Gonzales'),
-		('Enrique','Viloria','Carpio')
-
-GO
-
-INSERT INTO Medico(CodigoPersona,Vocacion, Consultorio, CedulaProfesional,RegistroSalubridad)
-VALUES 		(1,'Medico Bariatra',1,'86278261','9272867' ),
-			(2,'Oftalmólogo',2, '32232377','6982977'),
-			(3,'Psicólogo',3,  '98181087','2172940'),
-			(4,'Dentista',4,'87862102','8743287')
-GO
-UPDATE Medico
-SET CedulaProfesional=''
-WHERE CodigoPersona=1
-GO
-UPDATE Medico
-SET RegistroSalubridad=''
-WHERE CodigoPersona=1
-GO
-UPDATE Medico
-SET Vocacion=''
-WHERE CodigoPersona=1
-GO
-UPDATE Medico
-SET Consultorio=0
-WHERE CodigoPersona=1
-GO
-DELETE 	Medico
-FROM Medico
-Where CodigoPersona=6
-GO
-
-------------------------------------------------------
-
-Select D.CodigoMedico,F.Nombre,F.Cantidad,F.Descripcion,F.Categoria, D.FechaIngreso
-FROM MedicoProducto D INNER JOIN Producto F
-ON F.CodigoProducto= D.CodigoProducto
-GO
-
-
-------------------------------------------------------
-UPDATE Producto
-SET Nombre=''
-WHERE CodigoProducto=1
-GO
-UPDATE Producto
-SET Descripcion=''
-WHERE CodigoProducto=1
-GO
-UPDATE Producto
-SET Cantidad=''
-WHERE CodigoProducto=1
-GO
-------------------------------------------------------
-INSERT INTO Paciente(CodigoPersona,Sexo)
-VALUES (5,'Femenino'),
-		(6,'Masculino')
-GO
-
-INSERT INTO Cita (CodigoMedico,CodigoPaciente,CodigoVisita,Fecha,Hora,Costo)
-VALUES (1,1,1,'2012-11-11',12.20,300),
-		(2,2,2,'2012-11-11',1.20,200),
-		(1,2,3,'2012-10-30',5.30,100)
-GO
-------------------------------------------------------
-INSERT INTO Laboratorio(CodigoLab,Nombre)
-VALUES ('6482CD','Naturales ARTROM'),
-		('7283AR','Escame RITMO'),
-		('19s8KF1','Herba Life')
-GO
-UPDATE Laboratorio
-SET Nombre =''
-WHERE CodigoLaboratorio=1
-GO
-UPDATE Laboratorio
-SET CodigoLab =''
-WHERE CodigoLaboratorio=1
-GO
-DELETE Laboratorio
-FROM Laboratorio
-WHERE CodigoLaboratorio=1
-GO
-------------------------------------------------------
-INSERT INTO Persona(Nombre,ApellidoM, ApellidoP)
-VALUES 	('Laura', 'Contreras','López'),
-		('Juan','Barrera', 'Hidalgo'),
-		('Rodolfo','Perez','Castro'),
-		('Cuellar', 'Atilano', 'Perez'),
-		('Regina','Pineda','Gonzales'),
-		('Enrique','Viloria','Carpio')
-
-GO
-INSERT INTO Paciente(CodigoPersona,Sexo)
-VALUES (5,'Femenino'),
-		(6,'Masculino')
-GO
--------------------------------------------------------
-INSERT INTO HistorialMedico(CodigoPaciente,Edad,Estatura,Sexo,Ocupacion,PadecimientoActual,IngestaMedicamento,AntecedenteFamiliar,AntecedentePersonal)
-VALUES (1,'30','1.60','Femenino', 'Abogada','Problemas cardiovasculares y diabetes', '','Problemas cardiovasculares','Ninguno'),
-		(2,'24','1.84','Masculino','Albañil','Estrabismo','Ninguno','Ninguno','Ninguno')
-GO
--------------------------------------------------------
-INSERT INTO Producto(CodigoLaboratorio,Nombre,Cantidad,Descripcion,Categoria)
-VALUES	(1,'Alterox','30 tabletas','Sodio,Grasa Monoinsaturada, Grasa Saturada, Acidos Grasos Trans, Goma Acacia Organica','Reductor'),
-		(2,'Epefrano','15 tabletas', 'Eritiol,Sal,Goma Xantana, Estevia Organica','Vision'),
-		(3,'Sitrasinico','40 tabletas','Cisteina, minerales y creatina','Suplemento Alimenticio'),
-		(1,'Penamox','30 tabletas','Ampicilina','Antibiotico')
-GO
-INSERT INTO Registro(CodigoPaciente,PeriodoIngesta,Problema)
-VALUES (1,'15 días', 'Problemas cardiovasculares y diabetes'),
-		(2,'7 días', 'Problema de Estrabismo')
-GO
-INSERT INTO RegistroProducto(CodigoProducto, CodigoRegistro, CantidadIngresada)
-VALUES (1,1,'1 tableta cada 12 horas'),
-		(2,2,'1 tableta cada 6 horas'),
-		(3,2,'1 tableta cada 12 horas')
-GO
-----------------------------------------------------------
-INSERT INTO Persona(Nombre,ApellidoM, ApellidoP)
-VALUES 	('Laura', 'Contreras','López'),
-		('Juan','Barrera', 'Hidalgo'),
-		('Rodolfo','Perez','Castro'),
-		('Cuellar', 'Atilano', 'Perez'),
-		('Regina','Pineda','Gonzales'),
-		('Enrique','Viloria','Carpio')
-
-GO
-INSERT INTO Paciente(CodigoPersona,Sexo)
-VALUES (5,'Femenino'),
-		(6,'Masculino')
-GO
-INSERT INTO Medico(CodigoPersona,Vocacion, Consultorio, CedulaProfesional,RegistroSalubridad)
-VALUES 		(1,'Medico Bariatra',1,'86278261','9272867' ),
-			(2,'Oftalmólogo',2, '32232377','6982977'),
-			(3,'Psicólogo',3,  '98181087','2172940'),
-			(4,'Dentista',4,'87862102','8743287')
-GO
-INSERT INTO Visita (NoVisita)
-VALUES	('1'),
-		('2'),
-		('3')
-GO
-INSERT INTO Cita (CodigoMedico,CodigoPaciente,CodigoVisita,Fecha,Hora,Costo)
-VALUES (1,1,1,'2012-11-11',12.20,300),
-		(2,2,2,'2012-11-11',1.20,200),
-		(1,2,3,'2012-10-30',5.30,100)
-GO
-
-SELECT J.Nombre AS Paciente, R.Nombre AS Medico, K.NoVisita, Fecha, Hora
-FROM Cita D INNER JOIN Medico F
-ON D.CodigoMedico = F.CodigoMedico
-INNER JOIN Paciente H
-ON D.CodigoPaciente = H.CodigoPaciente
-INNER JOIN Visita K
-ON D.CodigoVisita =  K.CodigoVisita
-INNER JOIN Persona R
-ON R.CodigoPersona = F.CodigoPersona 
-INNER JOIN Persona J
-ON J.CodigoPersona = H.CodigoPersona
----------------------------------------------------------------
-SELECT SUM (CodigoPaciente) AS 'Numero de visitas'
-FROM Cita
-WHERE CodigoPaciente=1
----------------------------------------------------------------
-DELETE Cita
-FROM Cita
-WHERE CodigoCita= 1
---------------------------------------------------------------
-SELECT Edad,Estatura,D.Sexo,Ocupacion,PadecimientoActual,IngestaMedicamento,AntecedenteFamiliar,AntecedentePersonal, P.Nombre
-FROM HistorialMedico D INNER JOIN Paciente H
-ON D.CodigoPaciente = H.CodigoPaciente
-INNER JOIN Persona P
-ON H.CodigoPersona = P.CodigoPersona
---------------------------------------------------------------
-SELECT Edad,Estatura,D.Sexo,Ocupacion,PadecimientoActual,IngestaMedicamento,AntecedenteFamiliar,AntecedentePersonal, P.Nombre,R.PeriodoIngesta, I.Nombre
-FROM HistorialMedico D INNER JOIN Paciente H
-ON D.CodigoPaciente = H.CodigoPaciente
-INNER JOIN Persona P
-ON H.CodigoPersona = P.CodigoPersona
-INNER JOIN Registro R
-ON R.CodigoPaciente = P.CodigoPersona
-INNER JOIN RegistroProducto C
-ON C.CodigoRegistro=R.CodigoRegistro
-INNER JOIN Producto I
-ON C.CodigoProducto = I.CodigoProducto
--------------------------------------------------------------
-SELECT J.Nombre AS Paciente,J.ApellidoM,J.ApellidoP, F.Consultorio AS Consultorio, K.NoVisita, Fecha, Hora
-FROM Cita D INNER JOIN Medico F
-ON D.CodigoMedico = F.CodigoMedico
-INNER JOIN Paciente H
-ON D.CodigoPaciente = H.CodigoPaciente
-INNER JOIN Visita K
-ON D.CodigoVisita =  K.CodigoVisita
-INNER JOIN Persona R
-ON R.CodigoPersona = F.CodigoPersona 
-INNER JOIN Persona J
-ON J.CodigoPersona = H.CodigoPersona
--------------------------------------------------------------
-INSERT INTO MedicoProducto (CodigoMedico,CodigoProducto,FechaIngreso)
-
-VALUES	(1,2,'2017-10-10'),
-		(2,1,'2007-10-15'),
-		(3,1,'2010-10-10')
-GO
-SELECT L.Nombre AS Empresa,P.Nombre AS Producto, MP.FechaIngreso, P.Cantidad, N.Nombre AS Medico
-FROM MedicoProducto MP INNER JOIN Producto P
-ON MP.CodigoProducto=P.CodigoProducto
-INNER JOIN Laboratorio L
-ON L.CodigoLaboratorio = P.CodigoLaboratorio
-INNER JOIN Medico M
-ON M.CodigoMedico = MP.CodigoMedico
-INNER JOIN Persona N
-ON N.CodigoPersona = M.CodigoPersona
-----------------------------------------------------------
-SELECT SUM (CodigoCita) AS 'Cantidad de citas'
-FROM Cita
-WHERE Fecha ='2012-11-11'
-----------------------------------------------------------
-SELECT SUM(Costo) AS 'Dinero Total Ganado', CONCAT (P.Nombre,'  ' ,P.ApellidoM,'  ', P.ApellidoP) AS 'Nombre del medico'
-FROM Cita C INNER JOIN Medico M
-ON C.CodigoMedico = M.CodigoMedico
-INNER JOIN Persona P
-ON M.CodigoPersona = P.CodigoPersona
-WHERE Fecha = '2012-11-11'
-GROUP BY P.Nombre, P.ApellidoM,P.ApellidoP
-GO
-
 -----TRIGGERS TIPO 1
 CREATE TRIGGER tgr_TimeCita
 ON Cita
@@ -496,7 +276,7 @@ AS
 		DECLARE @today DATE = CAST(GETDATE() AS DATE)
 		DECLARE @idPaciente INT = (SELECT CodigoPaciente FROM inserted)
 		DECLARE @bDay DATE = (SELECT FechaNacimiento FROM Paciente WHERE CodigoPaciente = @idPaciente)
-		DECLARE @nyears INT = (Select datediff(Year, @bDay, @today) - case When datepart(dayofYear, @today) < datepart(dayofYear, @bDay) Then 1 Else 0)
+		DECLARE @nyears INT = (Select datediff(Year, @bDay, @today) - case When datepart(dayofYear, @today) < datepart(dayofYear, @bDay) Then 1 Else 0 END)
 		UPDATE HistorialMedico SET Edad = @nyears
 		WHERE CodigoHistorialMedico = (SELECT CodigoHistorialMedico FROM inserted)
 		END
@@ -508,16 +288,19 @@ CREATE PROCEDURE sp_InsertMedico
 @Persona VARCHAR(20),
 @paterno VARCHAR(20),
 @materno VARCHAR(20),
-@vocacion VARCHAR(40),
+@especialidad VARCHAR(100),
 @consultorio INT,
 @cedula VARCHAR(30),
 @salubridad VARCHAR(30)
 AS
 	INSERT INTO Persona(Nombre, ApellidoP, ApellidoM)
 				 VALUES(@Persona, @paterno, @materno)
-	DECLARE @id INT = (SELECT MAX(CodigoPersona) FROM Persona)  
-	INSERT INTO Medico(CodigoPersona, Vocacion, Consultorio, CedulaProfesional, RegistroSalubridad)
-				VALUES(@id, @vocacion, @consultorio, @cedula, @salubridad)
+	DECLARE @id INT = (SELECT MAX(CodigoPersona) FROM Persona)
+	DECLARE @tipo INT = (SELECT TOP 1(CodigoEspecialidad) FROM Especialidad WHERE Especialidad =  @especialidad OR Especialidad LIKE '%'+@especialidad+'%' OR Especialidad LIKE @especialidad+'%' OR Especialidad LIKE '%'+@especialidad)   
+	INSERT INTO Medico(CodigoPersona, Consultorio, CedulaProfesional, RegistroSalubridad)
+				VALUES(@id, @consultorio, @cedula, @salubridad)
+	DECLARE @idMedico INT = (SELECT MAX(CodigoMedico) FROM Medico)
+	INSERT INTO EspecialidadMedico (CodigoEspecialidad, CodigoMedico) VALUES (@tipo,@idMedico)
 GO
 
 CREATE PROCEDURE sp_InsertPersona
@@ -616,7 +399,181 @@ AS
 		ROLLBACK TRANSACTION
 	END CATCH
 GO
+--------------------------------
+--Trae todos los medicos que su especialidad es cirugia o medicina excluyendo los medicos de Medicina Nuclear
+--Y tienen menos de dos pacientes el dia actual
 
+CREATE VIEW view_MedicosSinConsultasDia
+AS
+	SELECT j.NombreCompleto, j.Especialidad, j.[Numero de Citas]
+	 FROM((
+		SELECT P.NombreCompleto, E.Especialidad, COUNT(C.CodigoCita) 'Numero de Citas'
+		FROM Medico M
+		LEFT JOIN Persona P
+		ON M.CodigoPersona = P.CodigoPersona
+		INNER JOIN EspecialidadMedico EM
+		ON EM.CodigoMedico = M.CodigoMedico
+		INNER JOIN Especialidad E
+		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
+		INNER JOIN Cita C
+		ON C.CodigoMedico = M.CodigoMedico
+		WHERE M.Estatus = 1 AND C.FechaInicio = GETDATE() AND E.Especialidad LIKE 'CIRUGÍA%'
+		HAVING COUNT(C.CodigoCita)<2
+			UNION 
+		SELECT P.NombreCompleto, E.Especialidad, COUNT(C.CodigoCita) 'Numero de Citas'
+		FROM Medico M
+		LEFT JOIN Persona P
+		ON M.CodigoPersona = P.CodigoPersona
+		INNER JOIN EspecialidadMedico EM
+		ON EM.CodigoMedico = M.CodigoMedico
+		INNER JOIN Especialidad E
+		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
+		INNER JOIN Cita C
+		ON C.CodigoMedico = M.CodigoMedico
+		WHERE M.Estatus = 1 AND C.FechaInicio = GETDATE() AND E.Especialidad LIKE 'MEDICINA%'
+		HAVING COUNT(C.CodigoCita)<2
+		)
+			EXCEPT
+		SELECT P.NombreCompleto, E.Especialidad, COUNT(C.CodigoCita) 'Numero de Citas'
+		FROM Medico M
+		LEFT JOIN Persona P
+		ON M.CodigoPersona = P.CodigoPersona
+		INNER JOIN EspecialidadMedico EM
+		ON EM.CodigoMedico = M.CodigoMedico
+		INNER JOIN Especialidad E
+		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
+		INNER JOIN Cita C
+		ON C.CodigoMedico = M.CodigoMedico
+		WHERE M.Estatus = 1 AND C.FechaInicio = GETDATE() AND E.Especialidad LIKE 'MEDICINA NUCLEAR'
+		)j
+GO
+--- VISTA QUE MUESTRA TODOS LOS LABORATORIOS QUE HAN VENDIDO 1 sola vez Y MAS DE 5 veces *A LOS MEDICOS CON MAS PACIENTES* QUITANDO LOS QUE SU ESTATUS ES 0
+CREATE VIEW view_LaboratoriosMasVENDEN
+AS
+	SELECT j.Empresa, j.[Productos Vendidos]
+	 FROM((
+		SELECT L.Nombre Empresa, COUNT(MP.CodigoMedicoProducto) 'Productos Vendidos'
+		FROM Medico M
+		LEFT JOIN Persona P
+		ON M.CodigoPersona = P.CodigoPersona
+		INNER JOIN EspecialidadMedico EM
+		ON EM.CodigoMedico = M.CodigoMedico
+		INNER JOIN Especialidad E
+		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
+		INNER JOIN Cita C
+		ON C.CodigoMedico = M.CodigoMedico
+		INNER JOIN MedicoProducto MP
+		ON MP.CodigoMedico = M.CodigoMedico
+		INNER JOIN Producto Pr
+		ON Pr.CodigoProducto = MP.CodigoProducto 
+		INNER JOIN Laboratorio L
+		ON L.CodigoLaboratorio = Pr.CodigoLaboratorio
+		HAVING COUNT(MP.CodigoMedicoProducto)=1
+			UNION 
+				SELECT L.Nombre Empresa, COUNT(MP.CodigoMedicoProducto) 'Productos Vendidos'
+		FROM Medico M
+		LEFT JOIN Persona P
+		ON M.CodigoPersona = P.CodigoPersona
+		INNER JOIN EspecialidadMedico EM
+		ON EM.CodigoMedico = M.CodigoMedico
+		INNER JOIN Especialidad E
+		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
+		INNER JOIN Cita C
+		ON C.CodigoMedico = M.CodigoMedico
+		INNER JOIN MedicoProducto MP
+		ON MP.CodigoMedico = M.CodigoMedico
+		INNER JOIN Producto Pr
+		ON Pr.CodigoProducto = MP.CodigoProducto 
+		INNER JOIN Laboratorio L
+		ON L.CodigoLaboratorio = Pr.CodigoLaboratorio
+		HAVING COUNT(MP.CodigoMedicoProducto)>5
+		)
+			EXCEPT
+		SELECT L.Nombre Empresa, COUNT(MP.CodigoMedicoProducto) 'Productos Vendidos'
+		FROM Medico M
+		LEFT JOIN Persona P
+		ON M.CodigoPersona = P.CodigoPersona
+		INNER JOIN EspecialidadMedico EM
+		ON EM.CodigoMedico = M.CodigoMedico
+		INNER JOIN Especialidad E
+		ON E.CodigoEspecialidad = EM.CodigoEspecialidad
+		INNER JOIN Cita C
+		ON C.CodigoMedico = M.CodigoMedico
+		INNER JOIN MedicoProducto MP
+		ON MP.CodigoMedico = M.CodigoMedico
+		INNER JOIN Producto Pr
+		ON Pr.CodigoProducto = MP.CodigoProducto 
+		INNER JOIN Laboratorio L
+		ON L.CodigoLaboratorio = Pr.CodigoLaboratorio
+		WHERE L.Estatus = 0
+		)j
+GO
+--------------------------------
+INSERT INTO Especialidad (Especialidad) VALUES
+('ALERGIA E INMUNOLOGÍA'),
+('ANATOMÍA PATOLÓGICA'),
+('ANESTESIOLOGÍA'),
+('ANGIOLOGÍA GENERAL y HEMODINAMIA'),
+('CARDIOLOGÍA'),
+('CARDIÓLOGO INFANTIL'),
+('CIRUGÍA GENERAL'),
+('CIRUGÍA CARDIOVASCULAR'),
+('CIRUGÍA DE CABEZA Y CUELLO'),
+('CIRUGÍA DE TÓRAX (CIRUGÍA TORÁCICA)'),
+('CIRUGÍA INFANTIL (CIRUGÍA PEDIÁTRICA)'),
+('CIRUGÍA PLÁSTICA Y REPARADORA'),
+('CIRUGÍA VASCULAR PERIFÉRICA'),
+('CLÍNICA MÉDICA'),
+('COLOPROCTOLOGÍA'),
+('DERMATOLOGÍA'),
+('DIAGNOSTICO POR IMÁGENES'),
+('ENDOCRINOLOGÍA'),
+('ENDOCRINÓLOGO INFANTIL'),
+('FARMACOLOGÍA CLÍNICA'),
+('FISIATRÍA (MEDICINA FÍSICA Y REHABILITACIÓN)'),
+('GASTROENTEROLOGÍA'),
+('GASTROENTERÓLOGO INFANTIL'),
+('GENÉTICA MEDICA'),
+('GERIATRÍA'),
+('GINECOLOGÍA'),
+('HEMATOLOGÍA'),
+('HEMATÓLOGO INFANTIL'),
+('HEMOTERAPIA E INMUNOHEMATOLOGÍA'),
+('INFECTOLOGÍA'),
+('INFECTÓLOGO INFANTIL'),
+('MEDICINA DEL DEPORTE'),
+('MEDICINA GENERAL y/o MEDICINA DE FAMILIA'),
+('MEDICINA LEGAL'),
+('MEDICINA NUCLEAR'),
+('MEDICINA DEL TRABAJO'),
+('NEFROLOGÍA'),
+('NEFRÓLOGO INFANTIL'),
+('NEONATOLOGÍA'),
+('NEUMONOLOGÍA'),
+('NEUMONÓLOGO INFANTIL'),
+('NEUROCIRUGÍA'),
+('NEUROLOGÍA'),
+('NEURÓLOGO INFANTIL'),
+('NUTRICIÓN'),
+('OBSTETRICIA'),
+('OFTALMOLOGÍA'),
+('ONCOLOGÍA'),
+('ONCÓLOGO INFANTIL'),
+('ORTOPEDIA Y TRAUMATOLOGÍA'),
+('OTORRINOLARINGOLOGÍA'),
+('PEDIATRÍA'),
+('PSIQUIATRÍA'),
+('PSIQUIATRÍA INFANTO JUVENIL'),
+('RADIOTERAPIA O TERAPIA RADIANTE'),
+('REUMATOLOGÍA'),
+('REUMATÓLOGO INFANTIL'),
+('TERAPIA INTENSIVA'),
+('TERAPISTA INTENSIVO INFANTIL'),
+('TOCOGINECOLOGÍA'),
+('TOXICOLOGÍA'),
+('UROLOGÍA')
+
+SELECT * FROM Persona
 
 ----------------------------------INSERTS DE PERSONA SIN PROCEDIMIENTO ALMACENADO
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Marco', 'Gerram', 'Grinham');
@@ -631,14 +588,14 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Blair', 'Cheales', '
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ruy', 'Lambdin', 'Tribe');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Son', 'Gillbanks', 'Sanderson');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Erskine', 'Drohane', 'Bedinn');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Nathan', 'O'' Dooley', 'Quincey');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Nathan', ' Dooley', 'Quincey');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Obed', 'De Bischof', 'Ohm');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Saul', 'Bewlay', 'Stobo');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Bone', 'McCaig', 'Gunda');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Grantham', 'Ginman', 'Craxford');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ikey', 'Byneth', 'Hundy');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Shaw', 'Mealing', 'Pester');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Vladamir', 'MacFadin', 'O''Dee');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Vladamir', 'MacFadin','Dee');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Elijah', 'Cowle', 'Youngman');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Robby', 'Dinesen', 'Paradyce');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Neal', 'Lee', 'Mariel');
@@ -647,7 +604,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Luce', 'Coldbreath',
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Eal', 'Lynch', 'Esslemont');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Wendel', 'Turnbull', 'Stammer');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Anatole', 'Vauls', 'Hibbart');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Lin', 'Ternouth', 'O''Currane');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Lin', 'Ternouth','Currane');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Lodovico', 'Bragger', 'Dayborne');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gerald', 'Destouche', 'Hold');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Skipton', 'Stoneley', 'Gutman');
@@ -756,23 +713,23 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Bat', 'Duligall', 'G
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Emmett', 'Teacy', 'Feria');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Noby', 'Wheeler', 'Bartlam');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Jarrad', 'Kilday', 'Brunone');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Jeremiah', 'Grivori', 'O''Dyvoie');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Jeremiah', 'Grivori','Dyvoie');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Rod', 'Glanton', 'Gockelen');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Filmer', 'Boggs', 'Comerford');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Claus', 'McCumskay', 'Hagger');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Chaim', 'Levermore', 'Belt');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Rochester', 'Crim', 'Nanninini');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Willey', 'Penson', 'Vasenkov');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Cornell', 'Ninotti', 'O''Day');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Cornell', 'Ninotti','Day');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Eric', 'Skittles', 'Fayerbrother');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Franzen', 'Challenor', 'Serfati');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Orbadiah', 'Kewley', 'Girauld');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Carly', 'Standing', 'Blenkiron');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Garv', 'Stirton', 'Berth');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Keene', 'Strelitz', 'Novotna');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Wes', 'Swigger', 'O''Lagen');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Wes', 'Swigger','Lagen');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Guntar', 'Shatford', 'Wymer');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Chris', 'O''Fogerty', 'Skentelbury');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Chris','Fogerty', 'Skentelbury');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Boot', 'Jenoure', 'Rimes');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Coop', 'Hasley', 'Barrim');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Robbie', 'Scholfield', 'Widdocks');
@@ -812,13 +769,13 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Georg', 'cornhill', 
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gawen', 'Braddon', 'Andrieux');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Fulton', 'Craddy', 'Brotheridge');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Mitchel', 'Taggart', 'Tomaszek');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Torr', 'Brewitt', 'O'' Mullane');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Torr', 'Brewitt',' Mullane');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gage', 'Minear', 'Jacobssen');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Kipper', 'Ollivierre', 'Sebire');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Stanton', 'Winkworth', 'Pabelik');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Hagen', 'Libbey', 'Cashen');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Caesar', 'Donner', 'Rehme');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ozzy', 'Babalola', 'O''Kielt');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ozzy', 'Babalola', 'Kielt');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Zach', 'Cratere', 'Halsho');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Napoleon', 'McLean', 'Sarten');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Asa', 'Normanvill', 'Dundredge');
@@ -839,7 +796,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Tades', 'Guinan', 'G
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Sigismund', 'Finnemore', 'Lanmeid');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Bronson', 'Morrid', 'Britee');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Clark', 'Markie', 'Becker');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Herschel', 'O''Hagan', 'Foulcher');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Herschel','Hagan', 'Foulcher');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Drake', 'Dwyr', 'Mincher');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Alley', 'Dring', 'Shoosmith');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Bondy', 'Erwin', 'Stuther');
@@ -853,7 +810,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Chrotoem', 'Bourgeoi
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Abram', 'Trimbey', 'Peddel');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gregor', 'Santhouse', 'Trenholm');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Tobie', 'Vila', 'Kubyszek');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Rodrick', 'Jacquet', 'O''Drought');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Rodrick', 'Jacquet','Drought');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Burk', 'Aloshikin', 'Oneill');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Eamon', 'Priel', 'Stott');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Melvin', 'Grafom', 'Olenov');
@@ -935,7 +892,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Davidde', 'Crunkhurn
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Winslow', 'Mulderrig', 'Waldrum');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Culley', 'Jeakins', 'Marian');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Etienne', 'Lasselle', 'Stoker');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Costa', 'O''Shiels', 'Clayfield');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Costa', 'Shiels', 'Clayfield');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Obediah', 'Death', 'Washbrook');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Prentiss', 'Kelf', 'Winscum');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Antin', 'Merigeau', 'Snassell');
@@ -1041,7 +998,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Sherlocke', 'Chatene
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gunter', 'Checchetelli', 'Ingles');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Rowland', 'Swinglehurst', 'Burkinshaw');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Toddie', 'Besnard', 'Hembling');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Dael', 'O''Dowling', 'Jasper');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Dael','Dowling', 'Jasper');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Bay', 'Poppy', 'Shipsey');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Maurits', 'Dominicacci', 'Everil');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Tymon', 'Wilbraham', 'Renowden');
@@ -1099,7 +1056,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Duffie', 'Emig', 'Co
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Balduin', 'Lambertini', 'Gannan');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Auberon', 'Soltan', 'Juhruke');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Walton', 'Keppy', 'Honniebal');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Kenyon', 'McIleen', 'O''Henecan');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Kenyon', 'McIleen','Henecan');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Seumas', 'Themann', 'Cutmere');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Peyton', 'Arnauduc', 'Roselli');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Jae', 'Exall', 'Esterbrook');
@@ -1117,7 +1074,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Barry', 'Kinnach', '
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Foss', 'Pottage', 'Moorman');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ewart', 'Haselden', 'Lenthall');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Montague', 'Switzer', 'Criple');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Raul', 'Drysdale', 'O'' Mara');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Raul', 'Drysdale', ' Mara');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ganny', 'Arbor', 'Sangwin');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Skelly', 'Leet', 'Gordon-Giles');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Barret', 'Dumigan', 'Darkott');
@@ -1151,7 +1108,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Bartram', 'Asman', '
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Tadeas', 'McColm', 'Bermingham');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gawen', 'Gentsch', 'Lodewick');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Windham', 'Hynes', 'Pennetta');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Conway', 'O''Glessane', 'Bencher');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Conway', 'Glessane', 'Bencher');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Justis', 'McVeigh', 'Carthy');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Addison', 'Welham', 'Glowacki');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Garold', 'Jewess', 'Dwelling');
@@ -1164,7 +1121,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gaby', 'Hatwell', 'F
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Bjorn', 'Pinn', 'Biddy');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Benedict', 'Swayte', 'Greim');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Osbert', 'Baker', 'Brigstock');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Fonz', 'Purdon', 'O''Hallagan');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Fonz', 'Purdon','Hallagan');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Edgard', 'Strelitzki', 'Hammand');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Kelvin', 'Ness', 'Twell');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gannie', 'Byrd', 'Seggie');
@@ -1198,7 +1155,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Josias', 'Rominov', 
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Birch', 'Ledger', 'Kleanthous');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Broderick', 'Blockey', 'Kropach');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Emmery', 'Woodyer', 'Deboo');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Hamish', 'Dine-Hart', 'O''Fergus');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Hamish', 'Dine-Hart','Fergus');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Nye', 'Legrave', 'Margaritelli');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Saleem', 'Liggins', 'Goracci');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Saunders', 'Gwinnel', 'Woodworth');
@@ -1225,7 +1182,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Randall', 'Ferreiro'
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Mohandas', 'Bettenson', 'Marie');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Erik', 'Lyddy', 'Vanne');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Billie', 'Gaylard', 'Iseton');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Niki', 'Kelso', 'O''Loghlen');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Niki', 'Kelso','Loghlen');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Roderick', 'Wroughton', 'Woodwind');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gonzales', 'Parlett', 'Creggan');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Matty', 'Sindall', 'Klaiser');
@@ -1245,7 +1202,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Byrann', 'Simonian',
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Otho', 'Prover', 'Shevill');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Kaspar', 'Elster', 'Moodycliffe');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Roddy', 'Dmytryk', 'Hadlee');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Willi', 'Murname', 'O''Gleasane');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Willi', 'Murname','Gleasane');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Graham', 'Crollman', 'Kilmary');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Roman', 'Ounsworth', 'Code');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Papageno', 'Blenkinsopp', 'Hug');
@@ -1318,7 +1275,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Geoffrey', 'Mannin',
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Randi', 'Ballentime', 'Dunderdale');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ave', 'Whalebelly', 'Springall');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Walker', 'McLean', 'Sailer');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Douglass', 'O''Lagen', 'Thombleson');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Douglass','Lagen', 'Thombleson');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Fletch', 'Bernaldez', 'Crippen');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Reade', 'Coney', 'Clausius');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Jesse', 'Lubeck', 'Joire');
@@ -1347,7 +1304,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Vassili', 'Molineux'
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Fletcher', 'Mussett', 'Curness');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Yorgo', 'Sterricker', 'Baumler');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Abramo', 'Queripel', 'Empson');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Maximo', 'O''Glassane', 'Dun');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Maximo','Glassane', 'Dun');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Erny', 'Johnigan', 'Dolohunty');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ari', 'Hearst', 'Badrock');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Cordy', 'Advani', 'Frosdick');
@@ -1371,7 +1328,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Leonard', 'Littledyk
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Linc', 'De Hooch', 'Leaton');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gardy', 'Brendel', 'Tirkin');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Justus', 'Watling', 'Landeaux');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Abdel', 'O''Sheils', 'Bloxsum');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Abdel', 'Sheils', 'Bloxsum');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gardy', 'Epple', 'Garnham');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Izzy', 'Linebarger', 'Abbis');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Garrick', 'Poyner', 'Bridewell');
@@ -1401,7 +1358,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Dani', 'Russ', 'Demo
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Griswold', 'Prescot', 'Belderson');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Tades', 'Forge', 'Kilkenny');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Thatch', 'Crosston', 'Glyne');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Jefferson', 'O''Grada', 'Lehmann');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Jefferson','Grada', 'Lehmann');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Normy', 'Topliss', 'Jarrad');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gaspar', 'Lampard', 'Joncic');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Booth', 'Bateman', 'Vasilyevski');
@@ -1440,7 +1397,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Pierce', 'Errichi', 
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Quent', 'Pedrol', 'Dutt');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Torrence', 'Linfitt', 'Lias');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Berke', 'Lorenc', 'Hugonnet');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Cosme', 'O''Shavlan', 'Tellenbrook');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Cosme','Shavlan', 'Tellenbrook');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Kalle', 'Chadd', 'Clandillon');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Lionello', 'Blazejewski', 'Wafer');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Hillery', 'Goor', 'Gabby');
@@ -1484,7 +1441,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Bronny', 'Drewitt', 
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Nico', 'Dallinder', 'Langtry');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Vasilis', 'Apedaile', 'Camell');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Abel', 'Jeggo', 'Gonneau');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ricky', 'O''Doohaine', 'Ginni');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ricky','Doohaine', 'Ginni');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Inglis', 'Pryce', 'Blitzer');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Yanaton', 'Mannix', 'Vasenkov');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Cort', 'Syce', 'Trundell');
@@ -1548,7 +1505,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Joaquin', 'Lilburne'
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Chickie', 'Buttle', 'Raynham');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Freeman', 'Brookz', 'Tilliard');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Godfree', 'Wolfe', 'Rhys');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Douglas', 'Balazot', 'O'' Kelleher');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Douglas', 'Balazot',' Kelleher');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Chandler', 'Carstairs', 'Cavee');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Sigfried', 'Wybrow', 'Frontczak');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Dolph', 'Hogben', 'Edmondson');
@@ -1611,7 +1568,7 @@ insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Ruy', 'Balmer', 'Dia
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Reade', 'Skipper', 'Skells');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Obadias', 'Erwin', 'Antonsson');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Damien', 'Josskoviz', 'Tresise');
-insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Hew', 'Weddeburn - Scrimgeour', 'Wishart');
+insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Hew', 'Weddeburn Scrimgeour', 'Wishart');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Tye', 'Slides', 'Newborn');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Jory', 'Blunsum', 'Stepto');
 insert into Persona (Nombre, ApellidoP, ApellidoM) values ('Gerri', 'Ganley', 'Christophers');
