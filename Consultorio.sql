@@ -1,6 +1,7 @@
 CREATE DATABASE ProyectoMedico
 USE ProyectoMedico
 
+
 --REGLA RANGO DE Lista de Valores(REGLA CON LISTA DE VALORES)
 CREATE RULE dbo.Prioridad_rule
 AS @lista IN('1', '2', '3');
@@ -166,9 +167,10 @@ CREATE TABLE Paciente(
 	CodigoPaciente INT PRIMARY KEY IDENTITY,
 	CodigoPersona INT NOT NULL FOREIGN KEY REFERENCES Persona(CodigoPersona) ON DELETE CASCADE ON UPDATE CASCADE,
 	Sexo Genero_type NOT NULL,
-	FechaNacimiento DATE NOT NULL
+	FechaNacimiento DATE NOT NULL,
 	Prioridad Prioridad_type NOT NULL
 )
+go
 --CREACION DE LA TABLA VISITAS
 CREATE TABLE Visita(
 	CodigoVisita INT PRIMARY KEY IDENTITY,
@@ -176,15 +178,15 @@ CREATE TABLE Visita(
 )
 --CREACION DE LA TABLA CITAS
 CREATE TABLE Cita(
-	CodigoCita INT PRIMARY KEY IDENTITY,
-	CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente) ON DELETE CASCADE ON UPDATE CASCADE,
-	CodigoMedico INT NOT NULL FOREIGN KEY REFERENCES Medico(CodigoMedico) ON DELETE CASCADE ON UPDATE CASCADE,
-	CodigoVisita INT NOT NULL FOREIGN KEY REFERENCES Visita(CodigoVisita) ON DELETE CASCADE ON UPDATE CASCADE,
-	FechaInicio DATE NOT NULL,
-	FechaFinal DATETIME NULL,
-	Hora Horario_type NOT NULL,
-	Costo FLOAT NOT NULL,
-	Estatus Estatus_type
+    CodigoCita INT PRIMARY KEY IDENTITY,
+    CodigoPaciente INT NOT NULL FOREIGN KEY REFERENCES Paciente(CodigoPaciente) ON DELETE CASCADE ON UPDATE CASCADE,
+    CodigoMedico INT NOT NULL FOREIGN KEY REFERENCES Medico(CodigoMedico),
+    CodigoVisita INT NOT NULL FOREIGN KEY REFERENCES Visita(CodigoVisita) ON DELETE CASCADE ON UPDATE CASCADE,
+    FechaInicio DATE NOT NULL,
+    FechaFinal DATETIME NULL,
+    Costo FLOAT NOT NULL,
+    Hora Horario_type NOT NULL,
+    Estatus Estatus_type
 )
 --CREACION DE LA TABLA REGISTROS
 CREATE TABLE Registro(
@@ -509,7 +511,7 @@ AS
 		ROLLBACK TRANSACTION
 	END CATCH
 GO
-
+--------------VISTAS SIMPLES
 CREATE VIEW EspecialidadesPorMedico AS
 (
 SELECT CONCAT(P.Nombre, P.ApellidoP, P.ApellidoM) AS MEDICO, EP.Especialidad    
@@ -531,6 +533,37 @@ CREATE VIEW GananciaPorMedicoAlDia AS
 	ON M.CodigoPersona = P.CodigoPersona
 	WHERE FechaInicio = GETDATE()
 	GROUP BY P.Nombre, P.ApellidoM,P.ApellidoP
+)
+GO
+
+CREATE VIEW ProductosPorLaboratorio AS
+(
+	SELECT L.CodigoLab AS CODIGO_LABORATORIO, L.Nombre AS NOMBRE_LABORATORIO, P.Nombre AS NOMBRE_MEDICAMENTO, P.Cantidad AS CANTIDAD_MEDICAMENTO
+	FROM Laboratorio L INNER JOIN Producto P
+	ON L.CodigoLaboratorio = P.CodigoLaboratorio
+	GROUP BY L.CodigoLab ,L.Nombre, P.Nombre, P.Cantidad
+	HAVING COUNT(P.Nombre) > 5
+)
+GO
+
+CREATE VIEW PadecimientodePaciente AS
+(
+	SELECT Pe.NombreCompleto AS NOMBRE_PACIENTE, P.Sexo AS SEXO, H.Edad AS EDAD, H.PadecimientoActual AS PADECIMIENTO
+	FROM HistorialMedico H INNER JOIN Paciente P
+	ON H.CodigoPaciente = P.CodigoPaciente INNER JOIN Persona Pe
+	ON P.CodigoPersona = Pe.CodigoPersona
+)
+GO
+
+CREATE VIEW MedicamentoRecetadoPorPaciente AS
+(
+	SELECT PE.NombreCompleto, PR.Nombre AS NOMBRE_PRODUCTO
+	FROM RegistroProducto RP INNER JOIN Registro R
+	ON RP.CodigoRegistro = R.CodigoRegistro INNER JOIN Paciente PA
+	ON R.CodigoPaciente = PA.CodigoPaciente INNER JOIN Persona PE
+	ON PA.CodigoPersona = PE.CodigoPersona INNER JOIN Producto PR
+	ON RP.CodigoProducto = PR.CodigoProducto
+	GROUP BY PA.CodigoPaciente, PE.NombreCompleto, PR.Nombre
 )
 GO
 
