@@ -337,28 +337,30 @@ SELECT * FROM Persona
 SELECT * FROM Paciente
 EXEC sp_InsertPersona 'Pedro','Corona', 'Ramirez','M', '2015-04-02'
 
-/*COMO EJECUTAR ESTE*/ 
-CREATE TYPE ProductoType AS TABLE(
-	IdProducto INT,
+CREATE TYPE Producto_Type AS TABLE(
 	Nombre VARCHAR (50) NOT NULL,
-	Cantidad VARCHAR(1000) NOT NULL,
+	Cantidad INT NOT NULL,
 	Descripcion VARCHAR(1000) NOT NULL,
 	Categoria Varchar(100));
-GO
-
+GO 
 CREATE PROCEDURE sp_InsertLabProducts
 @codLab VARCHAR(200),
 @nlab VARCHAR(200),
-@product ProductoType READONLY
+@product Producto_Type READONLY
 AS
 	INSERT INTO Laboratorio(CodigoLab, Nombre)
 					 VALUES(@codLab, @nlab)
 	DECLARE @IdLab INT
 	SET @IdLab=(SELECT MAX(CodigoLaboratorio) FROM Laboratorio)
-	INSERT INTO Producto(CodigoLaboratorio, CodigoProducto, Cantidad, Descripcion, Categoria)
+	INSERT INTO Producto(CodigoLaboratorio, Nombre,Cantidad, Descripcion, Categoria)
 	SELECT @IdLab, * FROM @product
 GO
-
+DECLARE @Producto AS Producto_Type
+INSERT INTO @Producto (Nombre,Cantidad,Descripcion,Categoria) VALUES ('Cortixon',20,'Contenido de mucha Uterolina','Anti-Depresivos')
+SELECT * FROM @Producto
+EXEC sp_InsertLabProducts 'KJHQ3232K','Zanellas Company', @Producto
+SELECT * FROM Producto
+SELECT * FROM Laboratorio
 -------PROCEDIMIENTOS ALMACENADOS CONSULTA
 CREATE PROCEDURE sp_PacientesAtendidosPorMedico
 @nombreMedico VARCHAR(20)
